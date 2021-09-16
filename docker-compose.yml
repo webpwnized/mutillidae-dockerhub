@@ -20,7 +20,7 @@ services:
   www:
     depends_on:
       - database
-      - ldap
+      - directory
     image: docker.io/webpwnized/mutillidae:www
     volumes:
     # Make the Apache log files on the image available to localhost
@@ -32,7 +32,7 @@ services:
       - datanet
       - ldapnet
 
-  ldap:
+  directory:
     image: docker.io/webpwnized/mutillidae:ldap
     volumes:
       - ldap_data:/var/lib/ldap
@@ -40,9 +40,9 @@ services:
     networks:
       - ldapnet
 
-  ldap_admin:
+  directory_admin:
     depends_on:
-      - ldap
+      - directory
     image: docker.io/webpwnized/mutillidae:ldap_admin
     ports:
       - 127.0.0.1:82:80
