@@ -16,7 +16,7 @@ The following video tutorials explain how to bring up Mutillidae on a set of 5 c
 
 ## TLDR
 
-	docker-compose up -d
+	docker-compose up
 
 ## Instructions
 
