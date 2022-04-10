@@ -4,20 +4,24 @@ version: '3.7'
 services:
 
   database:
+    container_name: database
     image: docker.io/webpwnized/mutillidae:database
     networks:
       - datanet   
 
   database_admin:
+    container_name: database_admin
     depends_on:
-    - database
+      - database
     image: docker.io/webpwnized/mutillidae:database_admin
     ports:
-    - 127.0.0.1:81:80
+      - 127.0.0.1:81:80
     networks:
       - datanet   
 
+  # Port 8080 is for StackHawk to scan
   www:
+    container_name: www
     depends_on:
       - database
       - directory
@@ -31,6 +35,7 @@ services:
       - ldapnet
 
   directory:
+    container_name: directory
     image: docker.io/webpwnized/mutillidae:ldap
     volumes:
       - ldap_data:/var/lib/ldap
@@ -39,6 +44,7 @@ services:
       - ldapnet
 
   directory_admin:
+    container_name: directory_admin
     depends_on:
       - directory
     image: docker.io/webpwnized/mutillidae:ldap_admin
