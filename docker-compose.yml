@@ -1,4 +1,5 @@
 # Documentation: https://github.com/compose-spec/compose-spec/blob/master/spec.md
+# Purpose: Build local containers for the Mutillidae environment
 
 version: '3.7'
 services:
@@ -40,6 +41,8 @@ services:
     volumes:
       - ldap_data:/var/lib/ldap
       - ldap_config:/etc/ldap/slapd.d
+      # - ./ldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom:rw
+    command: --copy-service
     networks:
       - ldapnet
 
@@ -52,7 +55,8 @@ services:
       - 127.0.0.1:82:80
     networks:
       - ldapnet
-   
+
+# Volumes to persist data used by the LDAP server
 volumes:
   ldap_data:
   ldap_config:
