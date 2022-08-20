@@ -1,4 +1,5 @@
 #!/bin/bash
+# Script must be run from the mutillidae-docker directory 
 
 echo "";
 echo "Starting containers";
@@ -14,7 +15,8 @@ curl http://mutillidae.local/set-up-database.php;
 
 echo "";
 echo "Uploading Mutillidae LDIF file to LDAP directory server";
-ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=local" -w mutillidae -H ldap:// -f ../ldif/mutillidae.ldif;
+CURRENT_DIRECTORY=$(pwd);
+ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=local" -w mutillidae -H ldap:// -f $CURRENT_DIRECTORY/ldif/mutillidae.ldif;
 
 # Wait for the user to press Enter key
 read -p "Press Enter to continue or <CTRL>-C to stop" </dev/tty
