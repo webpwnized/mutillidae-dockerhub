@@ -11,12 +11,12 @@ sleep 10;
 
 echo "";
 echo "Requesting Mutillidae database be built";
-curl http://mutillidae.local/set-up-database.php;
+curl http://mutillidae.localhost/set-up-database.php;
 
 echo "";
 echo "Uploading Mutillidae LDIF file to LDAP directory server";
 CURRENT_DIRECTORY=$(pwd);
-ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=local" -w mutillidae -H ldap:// -f $CURRENT_DIRECTORY/ldif/mutillidae.ldif;
+ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=localhost" -w mutillidae -H ldap:// -f $CURRENT_DIRECTORY/ldif/mutillidae.ldif;
 
 # Wait for the user to press Enter key
 read -p "Press Enter to continue or <CTRL>-C to stop" </dev/tty
