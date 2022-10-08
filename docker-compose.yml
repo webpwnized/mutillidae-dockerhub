@@ -21,6 +21,8 @@ services:
       - datanet   
 
   # Port 8080 is for StackHawk to scan. Use port 8088 for Burp-Suite
+  # IP 127.0.0.1 is for mutillidae.localhost or www.mutillidae.localhost
+  # IP 127.0.0.1 is for cors.mutilliiidae.localhost
   www:
     container_name: www
     depends_on:
@@ -31,6 +33,9 @@ services:
       - 127.0.0.1:80:80
       - 127.0.0.1:8080:80
       - 127.0.0.1:443:443
+      - 127.0.0.2:80:80
+      - 127.0.0.2:8080:80
+      - 127.0.0.2:443:443
     networks:
       - datanet
       - ldapnet
