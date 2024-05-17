@@ -113,7 +113,9 @@ if [ "$INITIALIZE_CONTAINERS" = true ]; then
 
     # Upload Mutillidae LDIF file to LDAP directory server
     print_message "Uploading Mutillidae LDIF file to LDAP directory server"
-    ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=localhost" -w mutillidae -H ldap:// -f "$LDIF_FILE" || handle_error "Failed to upload the Mutillidae LDIF file"
+    if ! ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=localhost" -w mutillidae -H ldap:// -f "$LDIF_FILE"; then
+        handle_error "Failed to upload the Mutillidae LDIF file"
+    fi
 
     # Check if the script should run unattended
     if [ "$UNATTENDED" = false ]; then
