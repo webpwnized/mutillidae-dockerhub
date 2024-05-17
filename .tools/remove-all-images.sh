@@ -24,7 +24,6 @@ show_help() {
 # Function to handle errors
 handle_error() {
     print_message "Error: $1"
-    exit 1
 }
 
 # Parse options
