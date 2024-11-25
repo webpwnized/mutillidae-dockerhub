@@ -15,8 +15,8 @@ handle_error() {
 
 # Retry function
 retry_command() {
-    local retries=5
-    local delay=5
+    local retries=3
+    local delay=10
     local count=0
     while [[ $count -lt $retries ]]; do
         "$@" && return 0
