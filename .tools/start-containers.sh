@@ -54,6 +54,22 @@ Options:
   -u, --unattended                 Run the script unattended without waiting for user input.
   -l, --ldif-file <path>           Specify the path to the LDIF file (required with --initialize-containers).
   -h, --help                       Display this help message.
+
+Examples:
+  1. Start containers using the default docker-compose.yml file:
+     .tools/start-containers.sh -f docker-compose.yml
+
+  2. Remove existing containers and images before starting:
+     .tools/start-containers.sh -f docker-compose.yml --remove-existing-images
+
+  3. Start and initialize containers using an LDIF file:
+     .tools/start-containers.sh -f docker-compose.yml --initialize-containers --ldif-file res/ldif/mutillidae.ldif
+
+  4. Run the script unattended with initialization and image removal:
+     .tools/start-containers.sh -f docker-compose.yml --initialize-containers --ldif-file res/ldif/mutillidae.ldif --remove-existing-images --unattended
+
+  5. Display help for the script:
+     .tools/start-containers.sh --help
 EOF
 }
 
