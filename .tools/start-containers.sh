@@ -1,6 +1,6 @@
 #!/bin/bash
 # Purpose: Start Docker containers defined in docker-compose.yml
-# Usage: ./tools/start-containers.sh [options] -f <compose-file>
+# Usage: .tools/start-containers.sh [options] -f <compose-file>
 
 # Function to print messages with a timestamp
 print_message() {
@@ -20,25 +20,25 @@ show_help() {
 Usage: .tools/start-containers.sh [options] -f <compose-file>
 
 Options:
-  -f, --compose-file <path>    Specify the path to the docker-compose.yml file (required).
-  -i, --initialize-containers  Initialize the containers after starting them.
-  -r, --rebuild-containers     Rebuild the containers before starting them.
-  -u, --unattended             Run the script unattended without waiting for user input.
-  -l, --ldif-file <path>       Specify the path to the LDIF file (required with --initialize-containers).
-  -h, --help                   Display this help message.
+  -f, --compose-file <path>        Specify the path to the docker-compose.yml file (required).
+  -i, --initialize-containers      Initialize the containers after starting them.
+  -rmi, --remove-existing-images   Remove existing containers and images before starting.
+  -u, --unattended                 Run the script unattended without waiting for user input.
+  -l, --ldif-file <path>           Specify the path to the LDIF file (required with --initialize-containers).
+  -h, --help                       Display this help message.
 
 Examples:
   1. Start containers without initialization:
      .tools/start-containers.sh --compose-file docker-compose.yml
 
-  2. Rebuild containers and start them:
-     .tools/start-containers.sh --compose-file docker-compose.yml --rebuild-containers
+  2. Remove existing containers and images before starting:
+     .tools/start-containers.sh --compose-file docker-compose.yml --remove-existing-images
 
   3. Start and initialize containers with an LDIF file:
      .tools/start-containers.sh --compose-file docker-compose.yml --initialize-containers --ldif-file res/ldif/mutillidae.ldif
 
-  4. Run script unattended with initialization and rebuild:
-     .tools/start-containers.sh --compose-file docker-compose.yml --initialize-containers --ldif-file res/ldif/mutillidae.ldif --rebuild-containers --unattended
+  4. Run script unattended with initialization and remove existing images:
+     .tools/start-containers.sh --compose-file docker-compose.yml --initialize-containers --ldif-file res/ldif/mutillidae.ldif --remove-existing-images --unattended
 
   5. Display this help message:
      .tools/start-containers.sh --help
@@ -47,7 +47,7 @@ EOF
 
 # Parse options
 INITIALIZE_CONTAINERS=false
-REBUILD_CONTAINERS=false
+REMOVE_EXISTING_IMAGES=false
 UNATTENDED=false
 LDIF_FILE=""
 COMPOSE_FILE=""
@@ -61,7 +61,7 @@ fi
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -i|--initialize-containers) INITIALIZE_CONTAINERS=true ;;
-        -r|--rebuild-containers) REBUILD_CONTAINERS=true ;;
+        -rmi|--remove-existing-images) REMOVE_EXISTING_IMAGES=true ;;
         -u|--unattended) UNATTENDED=true ;;
         -l|--ldif-file)
             if [[ -n "$2" && ! "$2" =~ ^- ]]; then
@@ -104,10 +104,13 @@ if [[ "$INITIALIZE_CONTAINERS" = true ]]; then
     fi
 fi
 
-# Remove existing containers and images if rebuilding is requested
-if [[ "$REBUILD_CONTAINERS" = true ]]; then
-    print_message "Rebuilding containers..."
-    docker compose --file "$COMPOSE_FILE" down --rmi all -v || handle_error "Failed to remove existing containers and images."
+# Remove existing containers and images if requested
+if [[ "$REMOVE_EXISTING_IMAGES" = true ]]; then
+    print_message "Stopping existing containers..."
+    .tools/stop-containers.sh -f "$COMPOSE_FILE" || handle_error "Failed to stop existing containers."
+
+    print_message "Removing existing images..."
+    .tools/remove-all-images.sh || handle_error "Failed to remove existing images."
 fi
 
 # Start Docker containers
