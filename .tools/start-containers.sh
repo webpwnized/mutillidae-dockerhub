@@ -16,31 +16,22 @@ handle_error() {
 
 # Function to display help message
 show_help() {
-    echo "Usage: $0 [options] -f <compose-file>"
-    echo ""
-    echo "Options:"
-    echo "  -f, --compose-file <path>  Specify the path to the docker-compose.yml file (required)."
-    echo "  -i, --initialize-containers Initialize the containers after starting them."
-    echo "  -r, --rebuild-containers   Rebuild the containers before starting them."
-    echo "  -u, --unattended           Run the script unattended without waiting for user input."
-    echo "  -l, --ldif-file <path>     Specify the path to the LDIF file (required with --initialize-containers)."
-    echo "  -h, --help                 Display this help message."
-    echo ""
-    echo "Examples:"
-    echo "  1. Start containers without initialization:"
-    echo "     ./.tools/start-containers.sh --compose-file ./.build/docker-compose.yml"
-    echo ""
-    echo "  2. Rebuild containers and start them:"
-    echo "     ./.tools/start-containers.sh --compose-file ./.build/docker-compose.yml --rebuild-containers"
-    echo ""
-    echo "  3. Start and initialize containers with an LDIF file:"
-    echo "     ./.tools/start-containers.sh --compose-file ./.build/docker-compose.yml --initialize-containers --ldif-file ./.build/ldap/configuration/ldif/mutillidae.ldif"
-    echo ""
-    echo "  4. Run script unattended with initialization and rebuild:"
-    echo "     ./.tools/start-containers.sh --compose-file ./.build/docker-compose.yml --initialize-containers --ldif-file ./.build/ldap/configuration/ldif/mutillidae.ldif --rebuild-containers --unattended"
-    echo ""
-    echo "  5. Run script with help option:"
-    echo "     ./.tools/start-containers.sh --help"
+    cat << EOF
+Usage: $0 [options] -f <compose-file>
+
+Options:
+  -f, --compose-file <path>    Specify the path to the docker-compose.yml file (required).
+  -i, --initialize-containers  Initialize the containers after starting them.
+  -r, --rebuild-containers     Rebuild the containers before starting them.
+  -u, --unattended             Run the script unattended without waiting for user input.
+  -l, --ldif-file <path>       Specify the path to the LDIF file (required with --initialize-containers).
+  -h, --help                   Display this help message.
+
+Examples:
+  ./start-containers.sh --compose-file ./docker-compose.yml
+  ./start-containers.sh --compose-file ./docker-compose.yml --rebuild-containers
+  ./start-containers.sh --compose-file ./docker-compose.yml --initialize-containers --ldif-file ./res/ldif/mutillidae.ldif
+EOF
 }
 
 # Parse options
@@ -50,7 +41,6 @@ UNATTENDED=false
 LDIF_FILE=""
 COMPOSE_FILE=""
 
-# Loop through the command-line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -i|--initialize-containers) INITIALIZE_CONTAINERS=true ;;
@@ -61,90 +51,76 @@ while [[ "$#" -gt 0 ]]; do
                 LDIF_FILE="$2"
                 shift
             else
-                print_message "Error: --ldif-file requires a non-empty option argument."
-                show_help
-                exit 1
+                handle_error "The --ldif-file option requires a valid file path."
             fi ;;
         -f|--compose-file)
             if [[ -n "$2" && ! "$2" =~ ^- ]]; then
                 COMPOSE_FILE="$2"
                 shift
             else
-                print_message "Error: --compose-file requires a non-empty option argument."
-                show_help
-                exit 1
+                handle_error "The --compose-file option requires a valid file path."
             fi ;;
         -h|--help) show_help; exit 0 ;;
-        *) print_message "Unknown parameter passed: $1"
-           show_help
-           exit 1 ;;
+        *) handle_error "Unknown parameter passed: $1";;
     esac
     shift
 done
 
-# Ensure the compose file is provided
+# Ensure the compose file is provided and exists
 if [[ -z "$COMPOSE_FILE" ]]; then
-    print_message "Error: The --compose-file option is required."
-    show_help
-    exit 1
+    handle_error "The --compose-file option is required."
+fi
+if [[ ! -f "$COMPOSE_FILE" ]]; then
+    handle_error "The specified compose file does not exist: $COMPOSE_FILE"
 fi
 
-# If initialization is required, ensure the LDIF file is provided
-if [[ "$INITIALIZE_CONTAINERS" = true && -z "$LDIF_FILE" ]]; then
-    print_message "Error: The --ldif-file option is required when using --initialize-containers."
-    show_help
-    exit 1
-fi
-
-# Check if ldapadd is installed
+# If initialization is required, ensure the LDIF file is provided and exists
 if [[ "$INITIALIZE_CONTAINERS" = true ]]; then
-    if ! command -v ldapadd &> /dev/null; then
+    if [[ -z "$LDIF_FILE" ]]; then
+        handle_error "The --ldif-file option is required when using --initialize-containers."
+    fi
+    if [[ ! -f "$LDIF_FILE" ]]; then
+        handle_error "The specified LDIF file does not exist: $LDIF_FILE"
+    fi
+    if ! command -v ldapadd &>/dev/null; then
         handle_error "ldapadd is not installed. Please install ldap-utils."
     fi
 fi
 
-# Remove all current containers and container images if specified
+# Remove existing containers and images if rebuilding is requested
 if [[ "$REBUILD_CONTAINERS" = true ]]; then
-    print_message "Removing all existing containers and container images"
-    docker compose --file "$COMPOSE_FILE" down --rmi all -v || handle_error "Failed to remove existing containers and images"
+    print_message "Rebuilding containers..."
+    docker compose --file "$COMPOSE_FILE" down --rmi all -v || handle_error "Failed to remove existing containers and images."
 fi
 
-# Start Docker containers, forcing a rebuild if required
-print_message "Starting containers"
-if [[ "$REBUILD_CONTAINERS" = true ]]; then
-    docker compose --file "$COMPOSE_FILE" up --detach --build --force-recreate || handle_error "Failed to start Docker containers"
-else
-    docker compose --file "$COMPOSE_FILE" up --detach || handle_error "Failed to start Docker containers"
-fi
+# Start Docker containers
+print_message "Starting containers..."
+docker compose --file "$COMPOSE_FILE" up --detach || handle_error "Failed to start Docker containers."
 
-# Check if containers need to be initialized
+# Initialize containers if requested
 if [[ "$INITIALIZE_CONTAINERS" = true ]]; then
-    # Wait for the database container to start
-    print_message "Waiting for database to start"
+    print_message "Waiting for containers to initialize..."
     sleep 10
 
-    # Request database to be built
-    print_message "Requesting database be built"
-    curl -sS http://mutillidae.localhost/set-up-database.php || handle_error "Failed to set up the database"
+    print_message "Setting up the database..."
+    curl -sS http://mutillidae.localhost/set-up-database.php || handle_error "Failed to set up the database."
 
-    # Upload LDIF file to LDAP directory server
-    print_message "Uploading LDIF file to LDAP directory server"
+    print_message "Adding LDAP entries from LDIF file..."
     ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=localhost" -w mutillidae -H ldap:// -f "$LDIF_FILE"
-    status=$?
-    if [[ $status -eq 0 ]]; then
+    LDAP_STATUS=$?
+    if [[ $LDAP_STATUS -eq 0 ]]; then
         print_message "LDAP entries added successfully."
-    elif [[ $status -eq 68 ]]; then
-        print_message "At least one of the LDAP entries already exists, but others were added where possible."
+    elif [[ $LDAP_STATUS -eq 68 ]]; then
+        print_message "Some LDAP entries already existed. Others were added successfully."
     else
-        handle_error "LDAP add operation failed with status: $status"
+        handle_error "Failed to add LDAP entries. ldapadd exited with status $LDAP_STATUS."
     fi
 
-    # Check if the script should run unattended
+    # Wait for user input if not running unattended
     if [[ "$UNATTENDED" = false ]]; then
-        # Wait for the user to press Enter key before continuing
         read -p "Press Enter to continue or <CTRL>-C to stop" </dev/tty
-
-        # Clear the screen
         clear
     fi
 fi
+
+print_message "All operations completed successfully."
