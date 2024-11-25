@@ -140,7 +140,16 @@ if [[ "$INITIALIZE_CONTAINERS" = true ]]; then
     wait_for_service "ldap://mutillidae.localhost" || handle_error "LDAP service is not ready."
 
     print_message "Adding LDAP entries from LDIF file..."
-    retry_command ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=localhost" -w mutillidae -H ldap:// -f "$LDIF_FILE" || handle_error "Failed to add LDAP entries."
+    retry_command ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=localhost" -w mutillidae -H ldap:// -f "$LDIF_FILE"
+    LDAP_STATUS=$?
+
+    if [[ $LDAP_STATUS -eq 0 ]]; then
+        print_message "LDAP entries added successfully."
+    elif [[ $LDAP_STATUS -eq 68 ]]; then
+        print_message "Some or all LDAP entries already exist. No action needed."
+    else
+        handle_error "LDAP add operation failed with status code $LDAP_STATUS."
+    fi
 fi
 
 print_message "All operations completed successfully."
