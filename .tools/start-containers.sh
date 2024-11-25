@@ -1,6 +1,6 @@
 #!/bin/bash
 # Purpose: Start Docker containers defined in docker-compose.yml
-# Usage: ./start-containers.sh [options] -f <compose-file>
+# Usage: ./tools/start-containers.sh [options] -f <compose-file>
 
 # Function to print messages with a timestamp
 print_message() {
@@ -17,7 +17,7 @@ handle_error() {
 # Function to display help message
 show_help() {
     cat << EOF
-Usage: $0 [options] -f <compose-file>
+Usage: .tools/start-containers.sh [options] -f <compose-file>
 
 Options:
   -f, --compose-file <path>    Specify the path to the docker-compose.yml file (required).
@@ -28,9 +28,20 @@ Options:
   -h, --help                   Display this help message.
 
 Examples:
-  ./start-containers.sh --compose-file ./docker-compose.yml
-  ./start-containers.sh --compose-file ./docker-compose.yml --rebuild-containers
-  ./start-containers.sh --compose-file ./docker-compose.yml --initialize-containers --ldif-file ./res/ldif/mutillidae.ldif
+  1. Start containers without initialization:
+     .tools/start-containers.sh --compose-file docker-compose.yml
+
+  2. Rebuild containers and start them:
+     .tools/start-containers.sh --compose-file docker-compose.yml --rebuild-containers
+
+  3. Start and initialize containers with an LDIF file:
+     .tools/start-containers.sh --compose-file docker-compose.yml --initialize-containers --ldif-file res/ldif/mutillidae.ldif
+
+  4. Run script unattended with initialization and rebuild:
+     .tools/start-containers.sh --compose-file docker-compose.yml --initialize-containers --ldif-file res/ldif/mutillidae.ldif --rebuild-containers --unattended
+
+  5. Display this help message:
+     .tools/start-containers.sh --help
 EOF
 }
 
@@ -40,6 +51,12 @@ REBUILD_CONTAINERS=false
 UNATTENDED=false
 LDIF_FILE=""
 COMPOSE_FILE=""
+
+# If no arguments are provided, show help and exit
+if [[ "$#" -eq 0 ]]; then
+    show_help
+    exit 1
+fi
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
