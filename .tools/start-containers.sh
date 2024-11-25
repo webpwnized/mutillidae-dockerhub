@@ -4,7 +4,6 @@
 
 # Function to print messages with a timestamp
 print_message() {
-    echo ""
     echo "$(date +"%Y-%m-%d %H:%M:%S") - $1"
 }
 
@@ -12,6 +11,35 @@ print_message() {
 handle_error() {
     print_message "Error: $1"
     exit 1
+}
+
+# Retry function
+retry_command() {
+    local retries=5
+    local delay=5
+    local count=0
+    while [[ $count -lt $retries ]]; do
+        "$@" && return 0
+        count=$((count + 1))
+        print_message "Retrying... ($count/$retries)"
+        sleep $delay
+    done
+    return 1
+}
+
+# Wait for a service to be ready
+wait_for_service() {
+    local url=$1
+    local retries=10
+    local delay=5
+    for ((i=1; i<=retries; i++)); do
+        if curl -s "$url" &>/dev/null; then
+            return 0
+        fi
+        print_message "Waiting for service at $url (Attempt $i/$retries)..."
+        sleep $delay
+    done
+    return 1
 }
 
 # Function to display help message
@@ -26,22 +54,6 @@ Options:
   -u, --unattended                 Run the script unattended without waiting for user input.
   -l, --ldif-file <path>           Specify the path to the LDIF file (required with --initialize-containers).
   -h, --help                       Display this help message.
-
-Examples:
-  1. Start containers without initialization:
-     .tools/start-containers.sh --compose-file docker-compose.yml
-
-  2. Remove existing containers and images before starting:
-     .tools/start-containers.sh --compose-file docker-compose.yml --remove-existing-images
-
-  3. Start and initialize containers with an LDIF file:
-     .tools/start-containers.sh --compose-file docker-compose.yml --initialize-containers --ldif-file res/ldif/mutillidae.ldif
-
-  4. Run script unattended with initialization and remove existing images:
-     .tools/start-containers.sh --compose-file docker-compose.yml --initialize-containers --ldif-file res/ldif/mutillidae.ldif --remove-existing-images --unattended
-
-  5. Display this help message:
-     .tools/start-containers.sh --help
 EOF
 }
 
@@ -52,7 +64,6 @@ UNATTENDED=false
 LDIF_FILE=""
 COMPOSE_FILE=""
 
-# If no arguments are provided, show help and exit
 if [[ "$#" -eq 0 ]]; then
     show_help
     exit 1
@@ -83,64 +94,37 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# Ensure the compose file is provided and exists
-if [[ -z "$COMPOSE_FILE" ]]; then
-    handle_error "The --compose-file option is required."
-fi
 if [[ ! -f "$COMPOSE_FILE" ]]; then
     handle_error "The specified compose file does not exist: $COMPOSE_FILE"
 fi
 
-# If initialization is required, ensure the LDIF file is provided and exists
 if [[ "$INITIALIZE_CONTAINERS" = true ]]; then
-    if [[ -z "$LDIF_FILE" ]]; then
-        handle_error "The --ldif-file option is required when using --initialize-containers."
-    fi
-    if [[ ! -f "$LDIF_FILE" ]]; then
-        handle_error "The specified LDIF file does not exist: $LDIF_FILE"
-    fi
-    if ! command -v ldapadd &>/dev/null; then
-        handle_error "ldapadd is not installed. Please install ldap-utils."
+    if [[ ! -r "$LDIF_FILE" ]]; then
+        handle_error "The specified LDIF file is not readable: $LDIF_FILE"
     fi
 fi
 
-# Remove existing containers and images if requested
 if [[ "$REMOVE_EXISTING_IMAGES" = true ]]; then
-    print_message "Stopping existing containers..."
+    print_message "Stopping and removing existing containers and images..."
     .tools/stop-containers.sh -f "$COMPOSE_FILE" || handle_error "Failed to stop existing containers."
-
-    print_message "Removing existing images..."
     .tools/remove-all-images.sh || handle_error "Failed to remove existing images."
 fi
 
-# Start Docker containers
 print_message "Starting containers..."
-docker compose --file "$COMPOSE_FILE" up --detach || handle_error "Failed to start Docker containers."
+retry_command docker compose -f "$COMPOSE_FILE" up -d || handle_error "Failed to start containers."
 
-# Initialize containers if requested
 if [[ "$INITIALIZE_CONTAINERS" = true ]]; then
-    print_message "Waiting for containers to initialize..."
-    sleep 10
+    print_message "Waiting for database service..."
+    wait_for_service "http://mutillidae.localhost/set-up-database.php" || handle_error "Database service is not ready."
 
     print_message "Setting up the database..."
-    curl -sS http://mutillidae.localhost/set-up-database.php || handle_error "Failed to set up the database."
+    retry_command curl -sS http://mutillidae.localhost/set-up-database.php || handle_error "Failed to set up the database."
+
+    print_message "Waiting for LDAP service..."
+    wait_for_service "ldap://mutillidae.localhost" || handle_error "LDAP service is not ready."
 
     print_message "Adding LDAP entries from LDIF file..."
-    ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=localhost" -w mutillidae -H ldap:// -f "$LDIF_FILE"
-    LDAP_STATUS=$?
-    if [[ $LDAP_STATUS -eq 0 ]]; then
-        print_message "LDAP entries added successfully."
-    elif [[ $LDAP_STATUS -eq 68 ]]; then
-        print_message "Some LDAP entries already existed. Others were added successfully."
-    else
-        handle_error "Failed to add LDAP entries. ldapadd exited with status $LDAP_STATUS."
-    fi
-
-    # Wait for user input if not running unattended
-    if [[ "$UNATTENDED" = false ]]; then
-        read -p "Press Enter to continue or <CTRL>-C to stop" </dev/tty
-        clear
-    fi
+    retry_command ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=localhost" -w mutillidae -H ldap:// -f "$LDIF_FILE" || handle_error "Failed to add LDAP entries."
 fi
 
 print_message "All operations completed successfully."
