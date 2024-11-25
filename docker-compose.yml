@@ -1,9 +1,7 @@
 # Documentation: https://github.com/compose-spec/compose-spec/blob/master/spec.md
 # Purpose: Build local containers for the Mutillidae environment
 
-version: '3.7'
 services:
-
   database:
     container_name: database
     image: docker.io/webpwnized/mutillidae:database
@@ -20,8 +18,6 @@ services:
     networks:
       - datanet   
 
-  # IP 127.0.0.1 is for mutillidae.localhost or www.mutillidae.localhost
-  # IP 127.0.0.1 is for cors.mutilliiidae.localhost
   www:
     container_name: www
     depends_on:
@@ -31,8 +27,6 @@ services:
     ports:
       - 127.0.0.1:80:80
       - 127.0.0.1:443:443
-      # - 127.0.0.2:80:80
-      # - 127.0.0.2:443:443
     networks:
       - datanet
       - ldapnet
@@ -58,12 +52,10 @@ services:
     networks:
       - ldapnet
 
-# Volumes to persist data used by the LDAP server
 volumes:
   ldap_data:
   ldap_config:
 
-# Create network segments for the containers to use
 networks:
-    datanet:
-    ldapnet:
+  datanet:
+  ldapnet:
