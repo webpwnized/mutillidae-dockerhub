@@ -140,7 +140,7 @@ if [[ "$INITIALIZE_CONTAINERS" = true ]]; then
     wait_for_service "ldap://mutillidae.localhost" || handle_error "LDAP service is not ready."
 
     print_message "Adding LDAP entries from LDIF file..."
-    retry_command ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=localhost" -w mutillidae -H ldap:// -f "$LDIF_FILE"
+    ldapadd -c -x -D "cn=admin,dc=mutillidae,dc=localhost" -w mutillidae -H ldap:// -f "$LDIF_FILE"
     LDAP_STATUS=$?
 
     if [[ $LDAP_STATUS -eq 0 ]]; then
